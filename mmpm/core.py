@@ -266,6 +266,25 @@ def search_modules(modules: dict, query: str) -> dict:
     return search_results
 
 
+def get_installation_candidates(modules: dict, modules_to_install: List[dict]):
+
+    candidates: dict = {}
+
+    # this is hideous, and should be reworked, but in the short-term, it'll cover the bases
+
+    for module_to_install in modules_to_install:
+        for category, index in modules.items():
+            for module in modules[category]:
+                if module[utils.TITLE] == module_to_install:
+                    if category not in candidates:
+                        candidates.update({category: list()})
+
+                    log.logger.info(f'Matched {module[utils.TITLE]} to installation candidate')
+                    candidates[category].append(module)
+
+    return candidates
+
+
 def install_modules(modules: dict, modules_to_install: List[str]) -> bool:
     '''
     Compares list of 'modules_to_install' to modules found within the
@@ -297,63 +316,83 @@ def install_modules(modules: dict, modules_to_install: List[str]) -> bool:
     existing_modules: List[str] = []
     failed_installs: List[str] = []
 
-    for module_to_install in modules_to_install:
+    installation_candidates = get_installation_candidates(modules, modules_to_install)
+    duplicate_titles = utils.get_duplicates([
+        module[utils.TITLE] for installation_candidate in installation_candidates.values() for module in installation_candidate
+    ])
+
+    if duplicate_titles:
+        duplicates: dict = {}
+
+        # this is also hideous, and should also be reworked
+        for duplicate in duplicate_titles:
+            for category, modules in installation_candidates.items():
+                for module in modules:
+                    if module[utils.TITLE] == duplicate:
+                        if category not in duplicates:
+                            duplicates[category] = []
+                        duplicates[category].append(module)
+
+        display_modules(duplicates)
+
+        utils.warning_msg('The above installation candidates have duplicate names.')
+        print('Please confirm which of the above modules you would like to install:')
+        # TODO: finish the prompting
+
+    sys.exit(0)
+
+    for module in installation_candidates:
         install_next: bool = False
+        title = module[utils.TITLE]
+        target = os.path.join(os.getcwd(), title)
+        repo = module[utils.REPOSITORY]
 
-        for category in modules.values():
-            for module in category:
-                if module[utils.TITLE] == module_to_install:
-                    log.logger.info(f'Matched {module[utils.TITLE]} to installation candidate')
-                    title = module[utils.TITLE]
-                    target = os.path.join(os.getcwd(), title)
-                    repo = module[utils.REPOSITORY]
+        try:
+            os.mkdir(target)
+        except OSError:
+            log.logger.info(f'Found {title} already in {os.getcwd()}. Skipping.')
+            utils.warning_msg(f"The module {title} is already installed. To remove the module, run 'mmpm -r {title}'")
+            existing_modules.append(title)
+            install_next = True
+            continue
 
-                    try:
-                        os.mkdir(target)
-                    except OSError:
-                        log.logger.info(f'Found {title} already in {os.getcwd()}. Skipping.')
-                        utils.warning_msg(f"The module {title} is already installed. To remove the module, run 'mmpm -r {title}'")
-                        existing_modules.append(title)
-                        install_next = True
-                        continue
+        os.chdir(target)
 
-                    os.chdir(target)
+        message = f"Installing {title} @ {target}"
+        utils.separator(message)
 
-                    message = f"Installing {title} @ {target}"
-                    utils.separator(message)
+        print(colors.RESET + "Installing " + colors.B_CYAN + f"{title}" + colors.B_YELLOW + " @ " + colors.RESET + f"{target}")
 
-                    print(colors.RESET + "Installing " + colors.B_CYAN + f"{title}" + colors.B_YELLOW + " @ " + colors.RESET + f"{target}")
+        utils.separator(message)
+        error_code, _, stderr = utils.clone(title, repo, target)
 
-                    utils.separator(message)
-                    error_code, _, stderr = utils.clone(title, repo, target)
+        if error_code:
+            utils.warning_msg("\n" + stderr)
+            failed_installs.append(title)
+            install_next = True
+            continue
 
-                    if error_code:
-                        utils.warning_msg("\n" + stderr)
-                        failed_installs.append(title)
-                        install_next = True
-                        continue
+        print(utils.done())
+        error: str = utils.handle_installation_process()
 
-                    print(utils.done())
-                    error: str = utils.handle_installation_process()
+        if error:
+            utils.error_msg(error)
+            failed_install_path = os.path.join(modules_dir, title)
+            message = f"Failed to install {title}, removing the directory: '{failed_install_path}'"
+            utils.error_msg(message)
+            log.logger.info(message)
+            failed_installs.append(title)
+            utils.run_cmd(['rm', '-rf', failed_install_path], progress=False)
 
-                    if error:
-                        utils.error_msg(error)
-                        failed_install_path = os.path.join(modules_dir, title)
-                        message = f"Failed to install {title}, removing the directory: '{failed_install_path}'"
-                        utils.error_msg(message)
-                        log.logger.info(message)
-                        failed_installs.append(title)
-                        utils.run_cmd(['rm', '-rf', failed_install_path], progress=False)
+        else:
+            successful_installs.append(title)
 
-                    else:
-                        successful_installs.append(title)
+        os.chdir(modules_dir)
+        install_next = True
+        break
 
-                    os.chdir(modules_dir)
-                    install_next = True
-                    break
-
-            if install_next:
-                break
+        if install_next:
+            break
 
     for module in modules_to_install:
         if module not in successful_installs and module not in existing_modules and module not in failed_installs:

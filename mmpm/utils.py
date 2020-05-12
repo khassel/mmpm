@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple
 from re import sub
 from mmpm import colors
 from shutil import which
+from collections import Counter
 
 # String constants
 MMPM_ENV_VAR: str = 'MMPM_MAGICMIRROR_ROOT'
@@ -580,4 +581,9 @@ def restart_magicmirror() -> None:
     else:
         stop_magicmirror()
         start_magicmirror()
+
+
+def get_duplicates(items: List[any]) -> List[any]:
+    count = Counter(items)
+    return [key for key in count.keys() if count[key]> 1]
 
