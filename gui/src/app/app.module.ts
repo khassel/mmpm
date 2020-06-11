@@ -16,6 +16,7 @@ import { SafePipe } from "./pipes/safe.pipe";
 import { TableUpdateNotifierService } from "src/app/services/table-update-notifier.service";
 import { MagicMirrorControlCenterComponent } from "./components/magic-mirror-control-center/magic-mirror-control-center.component";
 import { ConfirmationDialogComponent } from "./components/confirmation-dialog/confirmation-dialog.component";
+import { APP_BASE_HREF } from '@angular/common';
 
 @NgModule({
   declarations: [
@@ -57,7 +58,11 @@ import { ConfirmationDialogComponent } from "./components/confirmation-dialog/co
       }
     })
   ],
-  providers: [RestApiService, TableUpdateNotifierService],
+  providers: [
+    RestApiService, 
+    TableUpdateNotifierService,
+    { provide: APP_BASE_HREF, useValue: window['_app_base'] || '/' },
+  ],
   bootstrap: [AppComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
