@@ -23,7 +23,7 @@ export class LiveTerminalFeedDialogComponent implements OnInit {
   }
 
   private getSocket() {
-    return io(`http://${window.location.hostname}:7890`, {
+    return io(`http://${window.location.hostname}/` + window.location.pathname.split("/")[1], {
       reconnection: true,
       transports: ["websocket", "polling"]
     });

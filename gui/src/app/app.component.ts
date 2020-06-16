@@ -7,6 +7,6 @@ import { Component } from "@angular/core";
   providers: []
 })
 export class AppComponent {
-  webSSHLocation = `http://${window.location.hostname}:7892`;
+  webSSHLocation = `http://${window.location.hostname}/ssh/` + window.location.pathname.split("/")[1];
   title = "gui";
 }

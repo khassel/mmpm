@@ -15,7 +15,7 @@ const httpOptions = (httpHeaders: object = {}) => {
   providedIn: "root"
 })
 export class RestApiService {
-  private BASE_API_URL = `http://${window.location.hostname}:7890/` + window.location.pathname.split("/")[1] + `/api`;
+  private BASE_API_URL = `http://${window.location.hostname}/` + window.location.pathname.split("/")[1] + `/api`;
 
   constructor(private http: HttpClient) {}
 
